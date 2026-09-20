@@ -119,7 +119,7 @@ public class PushNotificationService {
         if (!enabled || userIds == null || userIds.isEmpty()) return;
         try {
             // TODO: new remove hardcore
-            List<DeviceToken> devices = deviceTokenRepository.findByUserIdIn(Collections.singleton("fbbbc6b6-dd1b-468d-afcb-aff81a904b81"));
+            List<DeviceToken> devices = deviceTokenRepository.findByUserIdIn(userIds);
             if (devices.isEmpty()) {
                 log.debug("No registered devices for users {} -- skipping push", userIds);
                 return;
