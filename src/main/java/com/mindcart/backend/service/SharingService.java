@@ -321,6 +321,13 @@ public class SharingService {
         }
         listMemberRepository.deleteByListIdAndUserId(listId, targetUserId);
         realtimeService.emitToList(listId, "list:memberRemoved", Map.of("listId", listId, "userId", targetUserId));
+        pushService.sendToUser(targetUserId, PushNotificationService.PushMessage.builder()
+                .title("Removed from list")
+                .body((list != null ? "You were removed from \"" + list.getName() + "\"" : "You were removed from a shared list"))
+                .type("list:memberRemoved")
+                .channel("invites")
+                .data("listId", listId)
+                .build());
     }
 
     // ---- helpers ----
