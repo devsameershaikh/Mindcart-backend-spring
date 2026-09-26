@@ -3,6 +3,8 @@ package com.mindcart.backend.service;
 import com.corundumstudio.socketio.SocketIOServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -10,9 +12,13 @@ public class RealtimeService {
 
     private static final Logger log = LoggerFactory.getLogger(RealtimeService.class);
 
+    @Nullable
     private final SocketIOServer server;
 
-    public RealtimeService(SocketIOServer server) {
+    // required = false -- ItemService/ListService depend on RealtimeService
+    // unconditionally, so this must still construct even when the
+    // SocketIOServer bean doesn't exist (SOCKETIO_ENABLED=false).
+    public RealtimeService(@Autowired(required = false) SocketIOServer server) {
         this.server = server;
     }
 
@@ -25,6 +31,7 @@ public class RealtimeService {
     }
 
     private void emit(String room, String event, Object payload) {
+        if (server == null) return; // realtime disabled -- REST writes still succeed, just no live push
         try {
             server.getRoomOperations(room).sendEvent(event, payload);
         } catch (Exception e) {

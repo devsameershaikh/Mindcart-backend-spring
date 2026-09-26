@@ -10,6 +10,7 @@ import com.mindcart.backend.repository.ListMemberRepository;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
@@ -27,6 +28,11 @@ import org.springframework.stereotype.Component;
  * this fires, so it is guaranteed present and already verified here.
  */
 @Component
+// Matches the guard on the SocketIOServer bean -- without this, disabling
+// the server via SOCKETIO_ENABLED=false would leave this @Component
+// trying to @Autowired a bean that doesn't exist, and the app would fail
+// to boot entirely.
+@ConditionalOnProperty(prefix = "app.socketio", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class SocketIOEventHandler {
 
     private static final Logger log = LoggerFactory.getLogger(SocketIOEventHandler.class);
