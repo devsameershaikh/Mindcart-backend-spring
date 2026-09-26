@@ -90,9 +90,9 @@ public class SharingService {
         // for the same thing.
         Optional<Invite> duplicate = allLists
                 ? inviteRepository.findFirstBySenderIdAndRecipientEmailAndStatusAndInviteAllLists(
-                        senderId, email, InviteStatus.PENDING, true)
+                senderId, email, InviteStatus.PENDING, true)
                 : inviteRepository.findFirstBySenderIdAndRecipientEmailAndStatusAndListId(
-                        senderId, email, InviteStatus.PENDING, request.listId);
+                senderId, email, InviteStatus.PENDING, request.listId);
         if (duplicate.isPresent()) {
             throw new ConflictException("There's already a pending invite for this person");
         }
@@ -113,6 +113,15 @@ public class SharingService {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("invite", dto);
         realtimeService.emitToUser(recipient.getId(), "invite:received", payload);
+
+        // Echo back to the SENDER's own user room too -- not just the device
+        // that made this API call. Without this, a second signed-in device
+        // (another phone, a tablet) never sees the new pending invite show
+        // up on its Family screen until it happens to resync some other way.
+        InviteDto senderCopy = InviteDto.from(invite);
+        Map<String, Object> senderPayload = new LinkedHashMap<>();
+        senderPayload.put("invite", senderCopy);
+        realtimeService.emitToUser(senderId, "invite:sent", senderPayload);
 
         // Push covers the case the socket can't: recipient's app is
         // backgrounded or killed. The socket handler in App.js already
@@ -273,6 +282,11 @@ public class SharingService {
         if (invite.getRecipientId() != null) {
             realtimeService.emitToUser(invite.getRecipientId(), "invite:revoked", Map.of("inviteId", invite.getId()));
         }
+
+        // Same gap as invite:sent -- without this, revoking an invite from
+        // one device leaves it sitting in the Pending Invites list on the
+        // owner's other signed-in devices until they happen to resync.
+        realtimeService.emitToUser(userId, "invite:revoked:ack", Map.of("inviteId", invite.getId()));
     }
 
     // PATCH /sharing/lists/:listId/members/:userId { role } -> owner changes someone's permission
