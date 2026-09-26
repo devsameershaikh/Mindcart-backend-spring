@@ -9,6 +9,7 @@ import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 
 import java.util.Map;
@@ -34,6 +35,10 @@ public class SocketIOConfig {
     private SocketIOServer server;
 
     @Bean
+    // Only stands up the socket server when the flag is truthy.
+    // matchIfMissing=true means "if the property is absent entirely, still
+    // start it" -- only an explicit SOCKETIO_ENABLED=false turns it off.
+    @ConditionalOnProperty(prefix = "app.socketio", name = "enabled", havingValue = "true", matchIfMissing = true)
     public SocketIOServer socketIOServer(JwtService jwtService) {
         Configuration config = new Configuration();
         config.setHostname("0.0.0.0");
