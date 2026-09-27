@@ -31,13 +31,12 @@ public class RealtimeService {
     }
 
     private void emit(String room, String event, Object payload) {
-        if (server == null) return; // realtime disabled -- REST writes still succeed, just no live push
+        if (server == null) return;
         try {
+            int clientCount = server.getRoomOperations(room).getClients().size();
+            log.info("emit '{}' to room '{}' -> {} client(s) connected", event, room, clientCount);
             server.getRoomOperations(room).sendEvent(event, payload);
         } catch (Exception e) {
-            // A realtime notification failing to send must never fail the
-            // HTTP request that triggered it -- the write to the database
-            // already succeeded, so we log and move on instead of throwing.
             log.warn("Failed to emit '{}' to room '{}': {}", event, room, e.toString());
         }
     }

@@ -60,28 +60,28 @@ public class SocketIOEventHandler {
             return;
         }
         client.joinRoom("user:" + userId);
-        for (ListMember membership : listMemberRepository.findByUserId(userId)) {
+        var memberships = listMemberRepository.findByUserId(userId);
+        log.info("socket connected: userId={} sessionId={} joining {} list room(s): {}",
+                userId, client.getSessionId(), memberships.size(),
+                memberships.stream().map(ListMember::getListId).toList());
+        for (ListMember membership : memberships) {
             client.joinRoom("list:" + membership.getListId());
         }
     }
 
     @OnDisconnect
     public void onDisconnect(SocketIOClient client) {
-        // netty-socketio cleans up room membership automatically on disconnect.
+        String userId = client.get("userId");
+        log.info("socket disconnected: userId={} sessionId={}", userId, client.getSessionId());
     }
-
     // Client calls this right after accepting an invite so it starts
     // receiving live updates for the newly-shared list without reconnecting.
     @OnEvent("list:join")
     public void onListJoin(SocketIOClient client, String listId) {
         String userId = client.get("userId");
         if (userId == null || listId == null || listId.isBlank()) return;
-        // Only join rooms the caller actually has access to -- the original
-        // handler trusted any listId the client sent, which would let a
-        // connected socket subscribe to live updates for a list it has no
-        // membership in. This closes that gap without changing the event's
-        // externally visible behavior for legitimate clients.
         boolean isMember = listMemberRepository.findByListIdAndUserId(listId, userId).isPresent();
+        log.info("list:join attempt: userId={} listId={} isMember={}", userId, listId, isMember);
         if (isMember) {
             client.joinRoom("list:" + listId);
         }
