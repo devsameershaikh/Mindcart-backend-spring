@@ -7,6 +7,7 @@ import com.mindcart.backend.entity.Role;
 import com.mindcart.backend.exception.BadRequestException;
 import com.mindcart.backend.exception.NotFoundException;
 import com.mindcart.backend.repository.ItemRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ import java.util.Optional;
 import java.util.Set;
 
 @Service
+@Slf4j
 public class ItemService {
 
     private static final Set<String> ALLOWED_UPDATE_FIELDS =
@@ -101,6 +103,8 @@ public class ItemService {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("listId", listId);
         payload.put("item", new ItemDto(item));
+        log.info("item:updated -> listId={} itemId={} qty={} price={} by userId={}",
+                listId, item.getId(), item.getQty(), item.getPrice(), userId);
         realtimeService.emitToList(listId, "item:updated", payload);
 
         return new ItemDto(item);
