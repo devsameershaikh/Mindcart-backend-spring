@@ -27,16 +27,7 @@ public class AuthService {
     // Seeded into every brand-new user's first "Groceries" list at signup.
     // Keep in sync with the mobile app's own local DEFAULT_ITEMS placeholder,
     // same as the original Node comment noted.
-    private static final List<String[]> DEFAULT_ITEMS = List.of(
-            new String[]{"Milk", "Dairy", "liter"},
-            new String[]{"Rice", "Grains & Pulses", "kg"},
-            new String[]{"Sugar", "Kitchen", "kg"},
-            new String[]{"Cooking Oil", "Oil & Ghee", "liter"},
-            new String[]{"Wheat Flour (Atta)", "Grains & Pulses", "kg"},
-            new String[]{"Salt", "Spices & Masala", "kg"},
-            new String[]{"Tea", "Beverages", "packet"},
-            new String[]{"Onion", "Vegetables", "kg"}
-    );
+private static final List<String[]> DEFAULT_ITEMS = List.of();
 
     private final UserRepository userRepository;
     private final ListRepository listRepository;
@@ -124,15 +115,15 @@ public class AuthService {
         owner.setRole(Role.OWNER);
         listMemberRepository.save(owner);
 
-        for (String[] def : DEFAULT_ITEMS) {
-            Item item = new Item();
-            item.setListId(list.getId());
-            item.setName(def[0]);
-            item.setCategory(def[1]);
-            item.setUnit(def[2]);
-            item.setUpdatedBy(userId);
-            itemRepository.save(item);
-        }
+        // for (String[] def : DEFAULT_ITEMS) {
+        //     Item item = new Item();
+        //     item.setListId(list.getId());
+        //     item.setName(def[0]);
+        //     item.setCategory(def[1]);
+        //     item.setUnit(def[2]);
+        //     item.setUpdatedBy(userId);
+        //     itemRepository.save(item);
+        // }
     }
 
     public UserPublicDto me(String userId) {
