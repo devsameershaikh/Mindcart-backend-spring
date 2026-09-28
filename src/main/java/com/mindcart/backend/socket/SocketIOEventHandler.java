@@ -52,21 +52,13 @@ public class SocketIOEventHandler {
         log.info("Socket.IO server listening on port {}", server.getConfiguration().getPort());
     }
 
+    // Room joins now happen in the auth-token listener (SocketIOConfig).
+    // Do NOT disconnect when userId is null here: this callback can run
+    // before the auth handshake finishes, and disconnecting caused the
+    // connect/disconnect loop seen in the logs.
     @OnConnect
     public void onConnect(SocketIOClient client) {
-        String userId = client.get("userId");
-        if (userId == null) {
-            client.disconnect();
-            return;
-        }
-        client.joinRoom("user:" + userId);
-        var memberships = listMemberRepository.findByUserId(userId);
-        log.info("socket connected: userId={} sessionId={} joining {} list room(s): {}",
-                userId, client.getSessionId(), memberships.size(),
-                memberships.stream().map(ListMember::getListId).toList());
-        for (ListMember membership : memberships) {
-            client.joinRoom("list:" + membership.getListId());
-        }
+        log.info("socket transport connected: sessionId={}", client.getSessionId());
     }
 
     @OnDisconnect
