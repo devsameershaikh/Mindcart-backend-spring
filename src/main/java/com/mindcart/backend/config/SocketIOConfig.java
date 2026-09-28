@@ -5,6 +5,8 @@ import com.corundumstudio.socketio.namespace.Namespace;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import com.mindcart.backend.security.JwtService;
+import com.mindcart.backend.entity.ListMember;
+import com.mindcart.backend.repository.ListMemberRepository;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +41,7 @@ public class SocketIOConfig {
     // matchIfMissing=true means "if the property is absent entirely, still
     // start it" -- only an explicit SOCKETIO_ENABLED=false turns it off.
     @ConditionalOnProperty(prefix = "app.socketio", name = "enabled", havingValue = "true", matchIfMissing = true)
-    public SocketIOServer socketIOServer(JwtService jwtService) {
+    public SocketIOServer socketIOServer(JwtService jwtService, ListMemberRepository listMemberRepository) {
         Configuration config = new Configuration();
         config.setHostname("0.0.0.0");
         config.setPort(port);
@@ -63,7 +65,16 @@ public class SocketIOConfig {
             try {
                 String token = extractToken(authData);
                 Claims claims = jwtService.verify(token);
-                client.set("userId", claims.getSubject());
+                String userId = claims.getSubject();
+                client.set("userId", userId);
+                // Join rooms HERE, not in @OnConnect: in netty-socketio 2.0.x
+                // @OnConnect can fire before the CONNECT packet (which carries
+                // auth: { token }) is processed, so userId is still null there.
+                client.joinRoom("user:" + userId);
+                for (ListMember m : listMemberRepository.findByUserId(userId)) {
+                    client.joinRoom("list:" + m.getListId());
+                }
+                log.info("socket authenticated: userId={} sessionId={}", userId, client.getSessionId());
                 return AuthTokenResult.AuthTokenResultSuccess;
             } catch (JwtException | IllegalArgumentException e) {
                 log.debug("Rejected socket.io handshake: {}", e.getMessage());
