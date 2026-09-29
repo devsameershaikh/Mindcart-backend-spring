@@ -9,6 +9,10 @@ public class RegisterPushTokenRequest {
     @Size(max = 255)
     public String token;
 
+    /** Stable device id from the app (optional: old app versions omit it). */
+    @Size(max = 64)
+    public String deviceId;
+
     @Size(max = 16)
     public String platform;
 

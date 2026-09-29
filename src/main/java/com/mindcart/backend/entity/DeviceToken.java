@@ -24,6 +24,9 @@ public class DeviceToken {
     @Column(name = "user_id", nullable = false, length = 36)
     private String userId;
 
+    @Column(name = "device_id", length = 64)
+    private String deviceId;
+
     @Column(name = "platform", length = 16)
     private String platform;
 
@@ -50,6 +53,8 @@ public class DeviceToken {
     public void setToken(String token) { this.token = token; }
     public String getUserId() { return userId; }
     public void setUserId(String userId) { this.userId = userId; }
+    public String getDeviceId() { return deviceId; }
+    public void setDeviceId(String deviceId) { this.deviceId = deviceId; }
     public String getPlatform() { return platform; }
     public void setPlatform(String platform) { this.platform = platform; }
     public String getDeviceName() { return deviceName; }
