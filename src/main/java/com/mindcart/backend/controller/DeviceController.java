@@ -6,6 +6,7 @@ import com.mindcart.backend.security.AuthenticatedUser;
 import com.mindcart.backend.service.PushNotificationService;
 import com.mindcart.backend.util.AuthUtil;
 import jakarta.validation.Valid;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -39,8 +40,17 @@ public class DeviceController {
             throw new BadRequestException("Not a valid Expo push token");
         }
 
-        pushService.registerDevice(me.getUserId(), token, request.platform,
-                request.deviceName, request.appVersion);
+        try {
+            pushService.registerDevice(me.getUserId(), token, request.platform,
+                    request.deviceName, request.appVersion, request.deviceId);
+        } catch (DataIntegrityViolationException race) {
+            // The app can fire two registrations at once (session restore +
+            // sign-in). The loser hits the PK / unique(device_id) index; the
+            // first transaction has committed by now, so one retry resolves
+            // it cleanly as an update.
+            pushService.registerDevice(me.getUserId(), token, request.platform,
+                    request.deviceName, request.appVersion, request.deviceId);
+        }
         return Map.of("ok", true);
     }
 

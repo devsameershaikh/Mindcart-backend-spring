@@ -51,7 +51,19 @@ public class PushNotificationService {
     private static final int MAX_MESSAGES_PER_REQUEST = 100;
 
     private final DeviceTokenRepository deviceTokenRepository;
+    private final PushReceiptService receiptService;
     private final RestClient restClient;
+
+    /** Safety net: a user never keeps more than this many tokens. */
+    @Value("${app.push.max-tokens-per-user:10}")
+    private int maxTokensPerUser;
+
+    /**
+     * For rows/app versions that have no deviceId: treat same user + platform
+     * + deviceName as the same device. Turn off once old app versions are gone.
+     */
+    @Value("${app.push.legacy-dedupe:true}")
+    private boolean legacyDedupe;
 
     @Value("${app.push.enabled:true}")
     private boolean enabled;
@@ -65,8 +77,10 @@ public class PushNotificationService {
     private String expoAccessToken;
 
     public PushNotificationService(DeviceTokenRepository deviceTokenRepository,
+                                   PushReceiptService receiptService,
                                    RestClient.Builder restClientBuilder) {
         this.deviceTokenRepository = deviceTokenRepository;
+        this.receiptService = receiptService;
         this.restClient = restClientBuilder.build();
     }
 
@@ -75,21 +89,43 @@ public class PushNotificationService {
     // ------------------------------------------------------------------
 
     /**
-     * Upsert. If the token already exists under a DIFFERENT user (shared or
-     * resold device), it is reassigned rather than duplicated -- see the
-     * comment on the entity.
+     * Register / refresh a device. Rules, in order:
+     *
+     *  1. One row per physical device. If the app sent a deviceId, every OTHER
+     *     token with that deviceId is deleted first -- this is what removes the
+     *     stale token after a reinstall / clear-data, and it also drops the
+     *     previous owner's row if the phone was handed to another user.
+     *  2. No deviceId (old app build): optionally treat same user + platform +
+     *     deviceName as the same device (legacy-dedupe).
+     *  3. Upsert by token. A token that exists under a DIFFERENT user is
+     *     reassigned, never duplicated.
+     *  4. Cap the user at maxTokensPerUser, dropping the least recently seen.
      */
     @Transactional
     public void registerDevice(String userId, String token, String platform,
-                               String deviceName, String appVersion) {
+                               String deviceName, String appVersion, String deviceId) {
+        String devId = (deviceId == null || deviceId.isBlank()) ? null : deviceId.trim();
+
+        if (devId != null) {
+            deviceTokenRepository.deleteOtherTokensOfDevice(devId, token);
+        } else if (legacyDedupe && platform != null && deviceName != null) {
+            deviceTokenRepository.deleteLegacyDuplicates(userId, platform, deviceName, token);
+        }
+
         DeviceToken row = deviceTokenRepository.findById(token).orElseGet(DeviceToken::new);
         row.setToken(token);
         row.setUserId(userId);
+        if (devId != null) row.setDeviceId(devId);
         row.setPlatform(platform);
         row.setDeviceName(deviceName);
         row.setAppVersion(appVersion);
         row.setLastSeenAt(java.time.Instant.now());
         deviceTokenRepository.save(row);
+
+        List<DeviceToken> mine = deviceTokenRepository.findByUserIdOrderByLastSeenAtDesc(userId);
+        if (mine.size() > maxTokensPerUser) {
+            deviceTokenRepository.deleteAllInBatch(mine.subList(maxTokensPerUser, mine.size()));
+        }
     }
 
     /**
@@ -169,6 +205,13 @@ public class PushNotificationService {
         List<String> deadTokens = new ArrayList<>();
         for (int i = 0; i < tickets.size() && i < tokens.size(); i++) {
             if (!(tickets.get(i) instanceof Map<?, ?> ticket)) continue;
+            if ("ok".equals(ticket.get("status"))) {
+                // Accepted by Expo != delivered. Uninstalled/rotated devices
+                // are only reported later, in the receipt -- see PushReceiptService.
+                Object ticketId = ticket.get("id");
+                if (ticketId != null) receiptService.track(String.valueOf(ticketId), tokens.get(i));
+                continue;
+            }
             if (!"error".equals(ticket.get("status"))) continue;
 
             Object details = ticket.get("details");
