@@ -86,7 +86,7 @@ CREATE TABLE "items" (
                  ON DELETE CASCADE,
     "name"       VARCHAR(40) NOT NULL,
     "category"   VARCHAR(100) NOT NULL,
-    "qty"        INTEGER NOT NULL DEFAULT 0,
+    "qty"        NUMERIC(8, 2) NOT NULL DEFAULT 0,
     "unit"       VARCHAR(50) NOT NULL,
     "price"      NUMERIC(12, 2),
     "checked"    BOOLEAN NOT NULL DEFAULT FALSE,

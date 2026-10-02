@@ -30,7 +30,7 @@ public class ItemService {
     private final RealtimeService realtimeService;
 
     public ItemService(ItemRepository itemRepository, PermissionService permissionService,
-                        RealtimeService realtimeService) {
+                       RealtimeService realtimeService) {
         this.itemRepository = itemRepository;
         this.permissionService = permissionService;
         this.realtimeService = realtimeService;
@@ -133,7 +133,7 @@ public class ItemService {
                 case "category" -> item.setCategory(value == null ? null : value.toString());
                 case "unit" -> item.setUnit(value == null ? null : value.toString());
                 case "note" -> item.setNote(value == null ? null : value.toString());
-                case "qty" -> item.setQty(value == null ? null : toInt(value));
+                case "qty" -> item.setQty(value == null ? null : toQty(value));
                 case "checked" -> item.setChecked(value == null ? null : toBool(value));
                 case "skipped" -> item.setSkipped(value == null ? null : toBool(value));
                 case "price" -> {
@@ -164,13 +164,26 @@ public class ItemService {
         throw new BadRequestException("Invalid price");
     }
 
-    private Integer toInt(Object value) {
-        if (value instanceof Number n) return n.intValue();
+    // Quantity may be fractional (1.5 kg). Stored as NUMERIC(8,2): rounded to
+    // 2 decimals, and bounded so a bad value gives a clean 400 instead of a
+    // database overflow error (500).
+    private static final BigDecimal MAX_QTY = new BigDecimal("100000");
+
+    private BigDecimal toQty(Object value) {
+        BigDecimal qty;
         try {
-            return Integer.parseInt(value.toString());
+            if (value instanceof Number n) {
+                double d = n.doubleValue();
+                if (Double.isNaN(d) || Double.isInfinite(d)) throw new BadRequestException("Invalid qty");
+                qty = (n instanceof BigDecimal bd) ? bd : BigDecimal.valueOf(d);
+            } else {
+                qty = new BigDecimal(value.toString().trim());
+            }
         } catch (NumberFormatException e) {
             throw new BadRequestException("Invalid qty");
         }
+        if (qty.signum() < 0 || qty.compareTo(MAX_QTY) > 0) throw new BadRequestException("Invalid qty");
+        return qty.setScale(2, java.math.RoundingMode.HALF_UP);
     }
 
     private Boolean toBool(Object value) {

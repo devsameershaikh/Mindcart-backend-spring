@@ -9,7 +9,7 @@ public class ItemDto {
     public String listId;
     public String name;
     public String category;
-    public Integer qty;
+    public BigDecimal qty;
     public String unit;
     public BigDecimal price;
     public Boolean checked;

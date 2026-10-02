@@ -6,6 +6,7 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "items")
+
 public class Item {
 
     @Id
@@ -21,8 +22,9 @@ public class Item {
     @Column(nullable = false)
     private String category;
 
-    @Column(nullable = false)
-    private Integer qty = 0;
+    // Fractional quantities allowed (e.g. 1.5 kg) -> NUMERIC(8,2), not INTEGER.
+    @Column(nullable = false, precision = 8, scale = 2)
+    private BigDecimal qty = BigDecimal.ZERO;
 
     @Column(nullable = false)
     private String unit;
@@ -69,8 +71,8 @@ public class Item {
     public void setName(String name) { this.name = name; }
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
-    public Integer getQty() { return qty; }
-    public void setQty(Integer qty) { this.qty = qty; }
+    public BigDecimal getQty() { return qty; }
+    public void setQty(BigDecimal qty) { this.qty = qty; }
     public String getUnit() { return unit; }
     public void setUnit(String unit) { this.unit = unit; }
     public BigDecimal getPrice() { return price; }
